@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Dasbor Prediksi DC Power PLTS</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>☀️</text></svg>">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{--bg:#f3f5f2;--sf:#fff;--tx:#17201b;--mu:#5d6b63;--bd:#d9dfda;--ac:#0b6e4f;--sun:#e8a317;--gr:#e4e9e5;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:light}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#101613;--sf:#18211c;--tx:#e8eee9;--mu:#98a79d;--bd:#2a362f;--ac:#3ec59a;--sun:#f2b83a;--gr:#222d26;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#101613;--sf:#18211c;--tx:#e8eee9;--mu:#98a79d;--bd:#2a362f;--ac:#3ec59a;--sun:#f2b83a;--gr:#222d26;color-scheme:dark}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.5 "Segoe UI",system-ui,sans-serif}
+header{padding:22px 20px 0;max-width:1180px;margin:auto}
+h1{font:700 26px/1.2 Georgia,"Times New Roman",serif;margin:0 0 4px}
+.sub{color:var(--mu);font-size:13px;max-width:70ch}
+.bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:14px}
+.tabs{display:flex;gap:2px;overflow-x:auto;border-bottom:1px solid var(--bd);margin-top:16px}
+.tabs button{background:none;border:0;border-bottom:3px solid transparent;color:var(--mu);padding:10px 14px;font:600 14px inherit;cursor:pointer;white-space:nowrap}
+.tabs button.on{color:var(--tx);border-color:var(--sun)}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--ac);outline-offset:2px}
+.btn{background:var(--ac);color:#fff;border:0;border-radius:6px;padding:8px 14px;font:600 13px inherit;cursor:pointer}
+.btn.o{background:none;color:var(--tx);border:1px solid var(--bd)}
+main{max-width:1180px;margin:auto;padding:18px 20px 40px}
+.sec{display:none}.sec.on{display:block}
+.kp{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:16px}
+.k{background:var(--sf);border:1px solid var(--bd);border-left:4px solid var(--sun);padding:12px 14px;border-radius:4px}
+.k b{display:block;font:700 24px Georgia,serif}.k span{color:var(--mu);font-size:12px}
+.g2{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:14px}
+.p{background:var(--sf);border:1px solid var(--bd);border-radius:4px;padding:14px;margin-bottom:14px;min-width:0}
+.p h2{font:600 15px inherit;margin:0 0 8px}
+.cv{position:relative;height:300px}
+.tw{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{padding:6px 9px;text-align:right;border-bottom:1px solid var(--gr);white-space:nowrap}
+th:first-child,td:first-child{text-align:left}th{color:var(--mu);font-weight:600}
+tr.best td{background:color-mix(in srgb,var(--sun) 16%,transparent);font-weight:600}
+.ctl{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;margin-bottom:10px;font-size:13px}
+.ctl label{display:flex;align-items:center;gap:4px}
+select{background:var(--sf);color:var(--tx);border:1px solid var(--bd);border-radius:6px;padding:5px 8px}
+.bd{padding:2px 8px;border-radius:10px;font-size:12px;font-weight:600;color:#fff}
+.note{color:var(--mu);font-size:12.5px;margin:6px 0 0}
+#st{font-size:12.5px;color:var(--mu)}
+</style>
+</head>
+<body>
+<header>
+<h1>Dasbor Prediksi DC Power PLTS</h1>
+<div class="bar">
+<button class="btn" id="up">Muat file CSV hasil program</button>
+<button class="btn o" id="demo">Pakai data contoh</button>
+<input type="file" id="fi" accept=".csv" multiple hidden>
+<span id="st"></span>
+</div>
+<div class="tabs" id="tabs"></div>
+</header>
+<main>
+<section class="sec" id="s0"></section>
+<section class="sec" id="s1"></section>
+<section class="sec" id="s2"></section>
+<section class="sec" id="s3"></section>
+<section class="sec" id="s4"></section>
+</main>
+<script>
+const NM=["CNN","GRU","LSTM","RNN","CNN+LSTM","GRU+LSTM","CNN+RNN","GRU+RNN"];
+const COL=['#2563eb','#dc2626','#16a34a','#d97706','#7c3aed','#0891b2','#db2777','#65a34a','#444'];
+const TABS=["Ringkasan","Perbandingan model","Aktual vs prediksi","Forecast masa depan","Rule base kondisi"];
+const KC={"Tidak ada produksi":"#6b7280","Produksi rendah":"#d97706","Produksi sedang":"#2563eb","Produksi tinggi":"#16a34a"};
+let S={},CH={},tab=0,demoOn=true;
+const $=id=>document.getElementById(id);
+const f=(v,d=2)=>v==null||isNaN(v)?"-":Number(v).toLocaleString("id-ID",{maximumFractionDigits:d,minimumFractionDigits:d});
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+ 
+/* ---------- parsing CSV ---------- */
+function parseCSV(t){
+ t=t.replace(/^\uFEFF/,"").trim().split(/\r?\n/);
+ const sep=t[0].split(";").length>t[0].split(",").length?";":",";
+ const h=t[0].split(sep).map(s=>s.trim());if(!h[0])h[0]="Date-Time";
+ return t.slice(1).map(l=>{const c=l.split(sep),o={};h.forEach((k,i)=>{const v=(c[i]||"").trim();o[k]=v!==""&&!isNaN(v)?+v:v});return o});
+}
+function ingest(name,rows){
+ const n=name.toLowerCase();
+ if(n.includes("hasil_evaluasi"))S.hasil=rows;
+ else if(n.includes("prediksi_test"))S.pred=rows;
+ else if(n.includes("forecast_evaluasi"))S.fe=rows;
+ else if(n.includes("rmse_per_horizon"))S.fh=rows;
+ else if(n.includes("forecast_masa_depan_kondisi"))S.fk=rows;
+ else if(n.includes("rule_base_evaluasi"))S.rb=rows;
+ else if(n.includes("peringkat"))S.rk=rows;
+ else return false;return true;
+}
+$("up").onclick=()=>$("fi").click();
+$("fi").onchange=async e=>{
+ if(demoOn){S={};demoOn=false}
+ const ok=[];
+ for(const fl of e.target.files){if(ingest(fl.name,parseCSV(await fl.text())))ok.push(fl.name)}
+ $("st").textContent=ok.length?"Dimuat: "+ok.join(", "):"Nama file tidak dikenali. Pakai file dari folder pred5.";
+ draw();
+};
+$("demo").onclick=()=>{demoOn=true;makeDemo();$("st").textContent="Menampilkan data contoh (bukan hasil asli).";draw()};
+ 
+/* ---------- data contoh ---------- */
+function makeDemo(){
+ let sd=7;const r=()=>(sd=(sd*16807)%2147483647)/2147483647;const gz=()=>(r()+r()+r()-1.5)*1.6;
+ const rm=[310,262,255,345,284,246,331,268];
+ S.hasil=NM.map((m,i)=>({Model:m,MAE:rm[i]*.6,RMSE:rm[i],R2:1-Math.pow(rm[i]/1000,2)*1.05,"NRMSE(%)":rm[i]/50,"WAPE(%)":rm[i]/18,MBE:(i%2?-1:1)*rm[i]*.03,MaxErr:rm[i]*3.2,RMSE_siang:rm[i]*1.4,R2_siang:.9-rm[i]/2500,Params:[19e3,17e3,23e3,6e3,26e3,25e3,12e3,14e3][i],Epoch:20+i*3,"Waktu(s)":60+i*25}));
+ S.hasil.sort((a,b)=>a.RMSE-b.RMSE);
+ const cl=[.55,.95,.8,.4,1,.7,.9],P=[];
+ for(let h=0;h<168;h++){
+  const hr=h%24,y=Math.max(0,5000*Math.sin(Math.PI*(hr-6)/12))*cl[Math.floor(h/24)];
+  const row={"Date-Time":"2025-03-"+String(10+Math.floor(h/24)).padStart(2,"0")+" "+String(hr).padStart(2,"0")+":00",Aktual:y};
+  NM.forEach((m,i)=>row[m]=y>0?Math.max(0,y+gz()*rm[i]*.9):Math.max(0,gz()*8));
+  P.push(row)}
+ S.pred=P;
+ const H=24,fc=[];
+ for(let h=0;h<H;h++){const hr=h%24,y=Math.max(0,5000*Math.sin(Math.PI*(hr-6)/12))*.85;
+  fc.push({"Date-Time":"2025-03-17 "+String(hr).padStart(2,"0")+":00","Prediksi_GRU+LSTM":Math.round(y*(.93+r()*.1)),"Persistence-24h":Math.round(y*(.6+r()*.8)),Kondisi_produksi:y<100?"Tidak ada produksi":y<1666?"Produksi rendah":y<3333?"Produksi sedang":"Produksi tinggi"})}
+ S.fk=fc;
+ S.fh=Array.from({length:H},(_,h)=>{const o={jam_ke_depan:h+1};NM.slice(0,4).forEach((m,i)=>o[m]=rm[i]*(1.6+h*.03));o["Persistence-24h (pembanding)"]=1100+r()*60;return o});
+ S.fe=[...NM.map((m,i)=>({Model:m,MAE:rm[i]*1.1,RMSE:rm[i]*1.9,R2:.62-i*.01,"Skill_vs_Persistence(%)":38-i*3})),{Model:"Persistence-24h (pembanding)",MAE:1000,RMSE:1180,R2:.31,"Skill_vs_Persistence(%)":0}].sort((a,b)=>a.RMSE-b.RMSE);
+ S.rb=[...NM.map((m,i)=>({Model:m,"Akurasi(%)":93-i*.9,"F1_macro(%)":88-i,"Recall_Tidak ada produksi(%)":99,"Recall_Produksi rendah(%)":70+i,"Recall_Produksi sedang(%)":74,"Recall_Produksi tinggi(%)":85})),{Model:"Rule base sensor (tanpa model)","Akurasi(%)":84,"F1_macro(%)":78,"Recall_Tidak ada produksi(%)":97,"Recall_Produksi rendah(%)":55,"Recall_Produksi sedang(%)":60,"Recall_Produksi tinggi(%)":80}].sort((a,b)=>b["Akurasi(%)"]-a["Akurasi(%)"]);
+}
+ 
+/* ---------- util tampilan ---------- */
+function chart(id,cfg){
+ if(CH[id])CH[id].destroy();
+ const tx=css("--mu"),gd=css("--gr");
+ cfg.options=Object.assign({responsive:true,maintainAspectRatio:false,animation:false},cfg.options||{});
+ const o=cfg.options;o.scales=o.scales||{};
+ for(const a of["x","y"]){o.scales[a]=Object.assign({ticks:{color:tx,maxTicksLimit:10},grid:{color:gd}},o.scales[a]||{});
+  o.scales[a].ticks=Object.assign({color:tx,maxTicksLimit:10},o.scales[a].ticks||{})}
+ o.plugins=Object.assign({legend:{labels:{color:tx,boxWidth:12}}},o.plugins||{});
+ CH[id]=new Chart($(id),cfg);
+}
+const empty=(t)=>`<div class="p"><h2>Belum ada data</h2><p class="note">Muat file <b>${t}</b> dari folder pred5, atau tekan "Pakai data contoh".</p></div>`;
+function table(rows,cols,best){
+ return `<div class="tw"><table><tr>${cols.map(c=>`<th>${c.replace(/_/g," ")}</th>`).join("")}</tr>`+
+ rows.map((r,i)=>`<tr class="${best&&i===0?"best":""}">${cols.map(c=>`<td>${typeof r[c]==="number"?f(r[c],Math.abs(r[c])<10?3:1):r[c]??"-"}</td>`).join("")}</tr>`).join("")+`</table></div>`;
+}
+function ranking(h){
+ const M={MAE:1,RMSE:1,"WAPE(%)":1,R2:0};
+ const rk=h.map(r=>({Model:r.Model,RMSE:r.RMSE,R:0}));
+ for(const m in M){const s=[...h].sort((a,b)=>M[m]?a[m]-b[m]:b[m]-a[m]);h.forEach((r,i)=>{rk[i].R+=s.findIndex(x=>x.Model===r.Model)+1})}
+ rk.forEach(r=>r.R/=4);return rk.sort((a,b)=>a.R-b.R||a.RMSE-b.RMSE);
+}
+ 
+/* ---------- render per tab ---------- */
+function draw(){
+ $("tabs").innerHTML=TABS.map((t,i)=>`<button class="${i===tab?"on":""}" onclick="tab=${i};draw()">${t}</button>`).join("");
+ document.querySelectorAll(".sec").forEach((s,i)=>s.classList.toggle("on",i===tab));
+ [r0,r1,r2,r3,r4][tab]();
+}
+function r0(){
+ const e=$("s0");if(!S.hasil){e.innerHTML=empty("hasil_evaluasi.csv");return}
+ const h=[...S.hasil].sort((a,b)=>a.RMSE-b.RMSE),b=h[0],rk=ranking(h),w=h[h.length-1];
+ e.innerHTML=`<div class="kp">
+ <div class="k"><span>Model terbaik (RMSE terendah)</span><b>${b.Model}</b></div>
+ <div class="k"><span>RMSE data test (W)</span><b>${f(b.RMSE,1)}</b></div>
+ <div class="k"><span>R²</span><b>${f(b.R2,4)}</b></div>
+ <div class="k"><span>WAPE</span><b>${f(b["WAPE(%)"],1)}%</b></div>
+ <div class="k"><span>Lebih akurat dari ${w.Model}</span><b>${f((w.RMSE-b.RMSE)/w.RMSE*100,1)}%</b></div></div>
+ <div class="g2"><div class="p"><h2>Peringkat akhir (rata-rata rank MAE, RMSE, WAPE, R²)</h2>${table(rk.map((r,i)=>({"#":i+1,Model:r.Model,RMSE:r.RMSE,Rata2_Rank:r.R})),["#","Model","RMSE","Rata2_Rank"],true)}</div>
+ <div class="p"><h2>RMSE tiap model (W)</h2><div class="cv"><canvas id="c0"></canvas></div></div></div>
+ <div class="p"><h2>Metrik lengkap data test</h2>${table(h,["Model","MAE","RMSE","R2","NRMSE(%)","WAPE(%)","MBE","MaxErr","RMSE_siang","R2_siang","Params","Epoch","Waktu(s)"],true)}
+ <p class="note">MBE positif berarti cenderung over-estimate. Metrik siang dihitung hanya saat PLTS menghasilkan daya (aktual &gt; 0).</p></div>`;
+ chart("c0",{type:"bar",data:{labels:h.map(r=>r.Model),datasets:[{data:h.map(r=>r.RMSE),backgroundColor:h.map((r,i)=>i?"#7a9a8c":css("--sun"))}]},options:{indexAxis:"y",plugins:{legend:{display:false}}}});
+}
+function r1(){
+ const e=$("s1");if(!S.hasil){e.innerHTML=empty("hasil_evaluasi.csv");return}
+ e.innerHTML=`<div class="p"><div class="ctl"><label>Metrik <select id="m1">${["RMSE","MAE","R2","WAPE(%)","NRMSE(%)","MBE","MaxErr","RMSE_siang","R2_siang","Waktu(s)","Params"].map(m=>`<option>${m}</option>`).join("")}</select></label></div><div class="cv"><canvas id="c1"></canvas></div></div>
+ <div class="p"><h2>Akurasi siang vs seluruh hari (RMSE, W)</h2><div class="cv"><canvas id="c1b"></canvas></div><p class="note">Selisih besar menunjukkan model lebih sulit saat PLTS aktif, karena malam hari mudah ditebak (daya 0).</p></div>`;
+ const h=S.hasil,go=()=>{const m=$("m1").value,asc=m!=="R2"&&m!=="R2_siang",d=[...h].sort((a,b)=>asc?a[m]-b[m]:b[m]-a[m]);
+  chart("c1",{type:"bar",data:{labels:d.map(r=>r.Model),datasets:[{label:m,data:d.map(r=>r[m]),backgroundColor:d.map((r,i)=>COL[NM.indexOf(r.Model)%8]||"#888")}]},options:{plugins:{legend:{display:false}}}})};
+ $("m1").onchange=go;go();
+ chart("c1b",{type:"bar",data:{labels:h.map(r=>r.Model),datasets:[{label:"RMSE semua jam",data:h.map(r=>r.RMSE),backgroundColor:"#7a9a8c"},{label:"RMSE saat siang",data:h.map(r=>r.RMSE_siang),backgroundColor:css("--sun")}]}});
+}
+function r2(){
+ const e=$("s2");if(!S.pred){e.innerHTML=empty("prediksi_test.csv");return}
+ const ms=Object.keys(S.pred[0]).filter(k=>k!=="Aktual"&&k!=="Date-Time"&&typeof S.pred[0][k]==="number");
+ e.innerHTML=`<div class="p"><div class="ctl"><label>Rentang <select id="rg"><option value="24">1 hari</option><option value="72">3 hari</option><option value="168" selected>7 hari</option><option value="720">30 hari</option></select></label>
+ ${ms.map((m,i)=>`<label><input type="checkbox" class="mc" value="${m}" ${i===0?"checked":""}><span style="color:${COL[i%9]}">●</span>${m}</label>`).join("")}</div>
+ <div class="cv" style="height:340px"><canvas id="c2"></canvas></div></div>
+ <div class="g2"><div class="p"><h2>Scatter aktual vs prediksi (garis ideal y = x)</h2><div class="ctl"><label>Model <select id="sm">${ms.map(m=>`<option>${m}</option>`).join("")}</select></label></div><div class="cv"><canvas id="c2b"></canvas></div></div>
+ <div class="p"><h2>Distribusi residual (prediksi − aktual)</h2><div class="cv"><canvas id="c2c"></canvas></div></div></div>`;
+ const go=()=>{
+  const n=Math.min(+$("rg").value,S.pred.length),d=S.pred.slice(0,n),sel=[...document.querySelectorAll(".mc:checked")].map(x=>x.value);
+  chart("c2",{type:"line",data:{labels:d.map(r=>String(r["Date-Time"]).slice(5,16)),datasets:[{label:"Aktual",data:d.map(r=>r.Aktual),borderColor:css("--tx"),borderWidth:2.4,pointRadius:0},...sel.map(m=>({label:m,data:d.map(r=>r[m]),borderColor:COL[ms.indexOf(m)%9],borderWidth:1.3,pointRadius:0}))]},options:{scales:{y:{title:{display:true,text:"DC Power (W)",color:css("--mu")}}}}});
+  const m=$("sm").value,mx=Math.max(...S.pred.map(r=>r.Aktual))*1.05;
+  chart("c2b",{type:"scatter",data:{datasets:[{label:m,data:S.pred.map(r=>({x:r.Aktual,y:r[m]})),backgroundColor:"rgba(37,99,235,.3)",pointRadius:2},{type:"line",label:"y = x",data:[{x:0,y:0},{x:mx,y:mx}],borderColor:"#dc2626",borderDash:[5,4],pointRadius:0}]},options:{scales:{x:{type:"linear",title:{display:true,text:"Aktual (W)",color:css("--mu")}},y:{title:{display:true,text:"Prediksi (W)",color:css("--mu")}}}}});
+  const res=S.pred.map(r=>r[m]-r.Aktual),lo=Math.min(...res),hi=Math.max(...res),bn=30,w=(hi-lo)/bn||1,cn=Array(bn).fill(0);
+  res.forEach(v=>cn[Math.min(bn-1,Math.floor((v-lo)/w))]++);
+  chart("c2c",{type:"bar",data:{labels:cn.map((_,i)=>Math.round(lo+i*w)),datasets:[{label:"Jumlah jam",data:cn,backgroundColor:"#d97706"}]},options:{plugins:{legend:{display:false}}}});
+ };
+ e.querySelectorAll("select,.mc").forEach(x=>x.onchange=go);go();
+}
+function r3(){
+ const e=$("s3");if(!S.fk&&!S.fe){e.innerHTML=empty("forecast_masa_depan_kondisi.csv, forecast_evaluasi.csv, forecast_rmse_per_horizon.csv");return}
+ let h="";
+ if(S.fk){const pk=Object.keys(S.fk[0]).find(k=>k.startsWith("Prediksi_")),kwh=S.fk.reduce((a,r)=>a+r[pk],0)/1000;
+  h+=`<div class="kp"><div class="k"><span>Model forecast</span><b>${pk.replace("Prediksi_","")}</b></div><div class="k"><span>Energi ${S.fk.length} jam ke depan</span><b>${f(kwh,1)} kWh</b></div><div class="k"><span>Puncak daya</span><b>${f(Math.max(...S.fk.map(r=>r[pk])),0)} W</b></div></div>
+  <div class="g2"><div class="p"><h2>Prediksi ${S.fk.length} jam ke depan</h2><div class="cv"><canvas id="c3"></canvas></div></div>
+  <div class="p"><h2>Tabel per jam beserta kondisi produksi</h2><div class="tw" style="max-height:300px;overflow-y:auto"><table><tr><th>Waktu</th><th>${pk.replace("_"," ")} (W)</th><th>Persistence (W)</th><th>Kondisi</th></tr>${S.fk.map(r=>`<tr><td>${String(r["Date-Time"]).slice(5,16)}</td><td>${f(r[pk],0)}</td><td>${f(r["Persistence-24h"],0)}</td><td style="text-align:left">${r.Kondisi_produksi?`<span class="bd" style="background:${KC[r.Kondisi_produksi]||"#888"}">${r.Kondisi_produksi}</span>`:"-"}</td></tr>`).join("")}</table></div></div></div>`}
+ if(S.fh)h+=`<div class="p"><h2>RMSE per jarak prediksi (makin kecil makin baik)</h2><div class="cv"><canvas id="c3b"></canvas></div></div>`;
+ if(S.fe){const b=S.fe.find(r=>!String(r.Model).startsWith("Persistence"));
+  h+=`<div class="p"><h2>Evaluasi forecast data test</h2>${table(S.fe,Object.keys(S.fe[0]).filter(k=>k!=="Params"&&k!=="Epoch"),false)}<p class="note">Model hanya bermakna jika Skill_vs_Persistence positif, artinya lebih baik dari "besok sama dengan kemarin".${b&&b["Skill_vs_Persistence(%)"]<=0?" <b>Saat ini tidak ada model yang mengalahkan persistence.</b>":""}</p></div>`}
+ e.innerHTML=h;
+ if(S.fk){const pk=Object.keys(S.fk[0]).find(k=>k.startsWith("Prediksi_"));
+  chart("c3",{type:"line",data:{labels:S.fk.map(r=>String(r["Date-Time"]).slice(5,16)),datasets:[{label:pk.replace("Prediksi_","Forecast "),data:S.fk.map(r=>r[pk]),borderColor:"#dc2626",borderWidth:2.4,pointRadius:0},{label:"Persistence-24h",data:S.fk.map(r=>r["Persistence-24h"]),borderColor:"#2563eb",borderDash:[5,4],pointRadius:0}]}})}
+ if(S.fh){const ks=Object.keys(S.fh[0]).filter(k=>k!=="jam_ke_depan");
+  chart("c3b",{type:"line",data:{labels:S.fh.map(r=>r.jam_ke_depan),datasets:ks.map((k,i)=>({label:k,data:S.fh.map(r=>r[k]),borderColor:k.startsWith("Persistence")?css("--tx"):COL[i%9],borderDash:k.startsWith("Persistence")?[6,4]:[],borderWidth:k.startsWith("Persistence")?2.4:1.4,pointRadius:0}))},options:{scales:{x:{title:{display:true,text:"Jam ke depan",color:css("--mu")}}}}})}
+}
+function r4(){
+ const e=$("s4");if(!S.rb){e.innerHTML=empty("rule_base_evaluasi.csv");return}
+ const d=[...S.rb].sort((a,b)=>b["Akurasi(%)"]-a["Akurasi(%)"]),rc=Object.keys(d[0]).filter(k=>k.startsWith("Recall_"));
+ e.innerHTML=`<div class="g2"><div class="p"><h2>Akurasi kondisi produksi (%)</h2><div class="cv"><canvas id="c4"></canvas></div></div>
+ <div class="p"><h2>Aturan JIKA-MAKA</h2><p class="note" style="font-size:13.5px">Kelas ditentukan dari fraksi kapasitas acuan (dc_power maksimum data latih), dengan ambang bawaan 2%, 1/3, dan 2/3:<br><span class="bd" style="background:${KC["Tidak ada produksi"]}">R1</span> daya &lt; 2% kapasitas: tidak ada produksi<br><span class="bd" style="background:${KC["Produksi rendah"]}">R2</span> 2% sampai 1/3: rendah<br><span class="bd" style="background:${KC["Produksi sedang"]}">R3</span> 1/3 sampai 2/3: sedang<br><span class="bd" style="background:${KC["Produksi tinggi"]}">R4</span> di atas 2/3: tinggi<br><br>Pembanding "Rule base sensor" memakai ambang poa_irradiance tanpa model sama sekali.</p></div></div>
+ <div class="p"><h2>Ketepatan per kelas</h2>${table(d,["Model","Akurasi(%)","F1_macro(%)",...rc],true)}</div>`;
+ chart("c4",{type:"bar",data:{labels:d.map(r=>r.Model),datasets:[{data:d.map(r=>r["Akurasi(%)"]),backgroundColor:d.map(r=>String(r.Model).startsWith("Rule base")?"#d97706":"#2f7f66")}]},options:{indexAxis:"y",plugins:{legend:{display:false}}}});
+}
+matchMedia("(prefers-color-scheme:dark)").addEventListener("change",draw);
+makeDemo();$("st").textContent="Menampilkan data contoh (bukan hasil asli). Muat CSV dari folder pred5 untuk hasil Anda.";draw();
+</script>
+</body>
+</html>
